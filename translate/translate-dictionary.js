@@ -5,6 +5,7 @@
 // @description  划词翻译调用“有道词典（有道翻译）、金山词霸、Bing 词典（必应词典）、剑桥高阶、沪江小D、谷歌翻译”
 // @author       https://github.com/barrer
 // @match        http://*/*
+// @exclude-match *://*.cn/*
 // @include      https://*/*
 // @include      file:///*
 // @run-at       document-start
@@ -16,10 +17,9 @@
 // @connect      chinacloudapi.cn
 // @connect      cambridge.org
 // @grant        GM_xmlhttpRequest
+// @grant        GM_getValue
+// @grant        GM_setValue
 // ==/UserScript==
-
-(function () {
-    'use strict';
 
     // Your code here...
     /**联网权限*/
@@ -152,6 +152,7 @@
     var engineResult = {}; // id: DOM 
     // 唯一 ID
     var ids = {
+        BD: 'bd',
         ICIBA: 'iciba',
         ICIBA_LOWER_CASE: 'icibaLowerCase',
         YOUDAO: 'youdao',
@@ -164,8 +165,8 @@
     // 唯一 ID 扩展
     var idsExtension = {
         // ID 组
-        LIST_DICT: [ids.ICIBA, ids.YOUDAO, ids.BING, ids.HJENGLISH, ids.CAMBRIDGE],
-        LIST_DICT_LOWER_CASE: [ids.ICIBA, ids.ICIBA_LOWER_CASE, ids.YOUDAO, ids.YOUDAO_LOWER_CASE, ids.BING, ids.HJENGLISH, ids.CAMBRIDGE],
+        LIST_DICT: [ids.BD, ids.ICIBA, ids.YOUDAO, ids.BING],
+        LIST_DICT_LOWER_CASE: [ids.BD, ids.ICIBA, ids.ICIBA_LOWER_CASE, ids.YOUDAO, ids.YOUDAO_LOWER_CASE, ids.BING],
         LIST_GOOGLE: [ids.GOOGLE],
         // 去重比对（大小写翻译可能一样）
         lowerCaseMap: (function () {
@@ -177,6 +178,7 @@
         // 标题
         names: (function () {
             var obj = {};
+            obj[ids.BD] = 'B';
             obj[ids.ICIBA] = '金山词霸';
             obj[ids.ICIBA_LOWER_CASE] = '';
             obj[ids.YOUDAO] = '有道词典';
@@ -190,6 +192,7 @@
         // 跳转到网站（“%q%”占位符或者 function text -> return URL）
         links: (function () {
             var obj = {};
+            obj[ids.BD] = 'https://fanyi.baidu.com/#en/zh/%q%';
             obj[ids.ICIBA] = 'https://www.iciba.com/word?w=%q%';
             obj[ids.ICIBA_LOWER_CASE] = '';
             obj[ids.YOUDAO] = 'https://dict.youdao.com/w/eng/%q%';
@@ -211,6 +214,20 @@
         // 翻译引擎
         engines: (function () {
             var obj = {};
+            obj[ids.BD] = function (text, time) {
+                console.log(text);
+                Trans = {
+                    transText: text,
+                    transOrigLang: "en",
+                    transTargetLang: "zh",
+                    transResult: {}
+                };
+                baiduTrans.AutoTrans(() => {
+                    console.log(Trans.transResult);
+                    putEngineResult(ids.BD, htmlToDom(Trans.transResult.trans[0]), time);
+                    showContent();
+                });
+            };
             obj[ids.ICIBA] = function (text, time) {
                 ajax('https://open.iciba.com/huaci_v3/dict.php?word=' + encodeURIComponent(text), function (rst) {
                     putEngineResult(ids.ICIBA, parseIciba(rst), time);
@@ -309,7 +326,8 @@
     var iconArray = [{
         name: '多词典查询',
         id: 'icon-dict',
-        image: 'data:image/png;base64,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',
+        // image: 'https://i0.hdslb.com/bfs/archive/07bcc0b8504d4a87204542af30fc792e4568471d.png',
+        image: 'https://res.wx.qq.com/mpres/htmledition/images/wxopen/doc49d02c.png',
         trigger: function (text, time) {
             idsType = idsExtension.LIST_DICT;
             if (text != text.toLowerCase()) {
@@ -324,7 +342,7 @@
     }, {
         name: '谷歌翻译',
         id: 'icon-google',
-        image: 'data:image/png;base64,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',
+        image: 'https://res.wx.qq.com/mpres/htmledition/images/wxopen/other49d02c.png',
         trigger: function (text, time) {
             idsType = idsExtension.LIST_GOOGLE;
             idsType.forEach(function (id) {
@@ -341,7 +359,8 @@
         img.setAttribute('alt', obj.name);
         img.setAttribute('title', obj.name);
         img.setAttribute('icon-id', obj.id);
-        img.addEventListener('mouseup', function () {
+        img.referrerPolicy = "no-referrer";
+        img.addEventListener('click', function () {
             if (engineId == obj.id) {
                 // 已经是当前翻译引擎，不做任何处理
             } else {
@@ -355,6 +374,9 @@
             }
         });
         icon.appendChild(img);
+    if(obj.id == 'icon-dict'){
+        window.default_img = img;
+    }
     });
     // 添加内容面板（放图标后面）
     icon.appendChild(content);
@@ -649,6 +671,7 @@
                 contentList.appendChild(engine);
             }
         });
+        new Audio(`https://fanyi.baidu.com/gettts?lan=en&text=${selected}&spd=3&source=web`).play();
     }
     /**显示内容面板*/
     function displayContent() {
@@ -801,6 +824,8 @@
             // 兼容部分 Content Security Policy
             icon.style.position = 'absolute';
             icon.style.zIndex = zIndex;
+        if(location.host=="mozilla.github.io" || location.host=="djvu.js.org")
+            window.default_img.click();
         } else if (!selected) { // 隐藏翻译图标
             log('hide icon');
             hideIcon();
@@ -822,29 +847,9 @@
     }
     /**发音*/
     function play(obj) {
-        if (obj.url in audioCache) { // 查找缓存
-            log('audio in cache', obj, audioCache);
-            playArrayBuffer(audioCache[obj.url]); // 播放
-        } else {
-            ajax(obj.url, function (rst, res) {
-                audioCache[obj.url] = res.response; // 放入缓存
-                playArrayBuffer(audioCache[obj.url]); // 播放
-            }, function (rst) {
-                log(rst);
-            }, {
-                responseType: 'arraybuffer'
-            });
-        }
-    }
-    /**播放 ArrayBuffer 音频*/
-    function playArrayBuffer(arrayBuffer) {
-        var context = new iframeWin.AudioContext() || new iframeWin.webkitAudioContext();
-        context.decodeAudioData(arrayBuffer.slice(0), function (audioBuffer) { // `slice(0)`克隆一份（`decodeAudioData`后原数组清空）
-            var bufferSource = context.createBufferSource();
-            bufferSource.buffer = audioBuffer;
-            bufferSource.connect(context.destination);
-            bufferSource.start();
-        });
+        console.log(obj);
+        let audioObj = new Audio(obj.url);
+        audioObj.play();
     }
     /**得到发音按钮*/
     function getPlayButton(obj) {
@@ -1153,4 +1158,204 @@
         }
         return a
     }
-})();
+
+
+///////////////////https://github.com/zyufstudio/TM/tree/master/webTranslate////////////////
+function a(r) {
+if (Array.isArray(r)) {
+    for (var o = 0, t = Array(r.length); o < r.length; o++)
+    t[o] = r[o];
+    return t
+}
+return Array.from(r)
+}
+
+function n(r, o) {
+for (var t = 0; t < o.length - 2; t += 3) {
+    var a = o.charAt(t + 2);
+    a = a >= "a" ? a.charCodeAt(0) - 87 : Number(a),
+    a = "+" === o.charAt(t + 1) ? r >>> a : r << a,
+    r = "+" === o.charAt(t) ? r + a & 4294967295 : r ^ a
+}
+return r
+}
+
+function e(r,gtk) {
+var i = null;
+var o = r.match(/[\uD800-\uDBFF][\uDC00-\uDFFF]/g);
+if (null === o) {
+    var t = r.length;
+    t > 30 && (r = "" + r.substr(0, 10) + r.substr(Math.floor(t / 2) - 5, 10) + r.substr(-10, 10))
+} else {
+    for (var e = r.split(/[\uD800-\uDBFF][\uDC00-\uDFFF]/), C = 0, h = e.length, f = []; h > C; C++)
+    "" !== e[C] && f.push.apply(f, a(e[C].split(""))),
+    C !== h - 1 && f.push(o[C]);
+    var g = f.length;
+    g > 30 && (r = f.slice(0, 10).join("") + f.slice(Math.floor(g / 2) - 5, Math.floor(g / 2) + 5).join("") + f.slice(-10).join(""))
+}
+var u = void 0
+    , l = "" + String.fromCharCode(103) + String.fromCharCode(116) + String.fromCharCode(107);
+u = null !== i ? i : (i = gtk || "") || "";
+for (var d = u.split("."), m = Number(d[0]) || 0, s = Number(d[1]) || 0, S = [], c = 0, v = 0; v < r.length; v++) {
+    var A = r.charCodeAt(v);
+    128 > A ? S[c++] = A : (2048 > A ? S[c++] = A >> 6 | 192 : (55296 === (64512 & A) && v + 1 < r.length && 56320 === (64512 & r.charCodeAt(v + 1)) ? (A = 65536 + ((1023 & A) << 10) + (1023 & r.charCodeAt(++v)),
+    S[c++] = A >> 18 | 240,
+    S[c++] = A >> 12 & 63 | 128) : S[c++] = A >> 12 | 224,
+    S[c++] = A >> 6 & 63 | 128),
+    S[c++] = 63 & A | 128)
+}
+for (var p = m, F = "" + String.fromCharCode(43) + String.fromCharCode(45) + String.fromCharCode(97) + ("" + String.fromCharCode(94) + String.fromCharCode(43) + String.fromCharCode(54)), D = "" + String.fromCharCode(43) + String.fromCharCode(45) + String.fromCharCode(51) + ("" + String.fromCharCode(94) + String.fromCharCode(43) + String.fromCharCode(98)) + ("" + String.fromCharCode(43) + String.fromCharCode(45) + String.fromCharCode(102)), b = 0; b < S.length; b++)
+    p += S[b],
+    p = n(p, F);
+return p = n(p, D),
+p ^= s,
+0 > p && (p = (2147483647 & p) + 2147483648),
+p %= 1e6,
+p.toString() + "." + (p ^ m)
+}
+
+/**
+ * @param  {string} word
+ * @param  {string} gtk
+ * @return {string}
+ */
+var calcSign =function(word,gtk){
+return e(word,gtk);
+}
+
+function GetToken(){
+    GM_xmlhttpRequest({
+        method: "GET",
+        url: "https://fanyi.baidu.com/",
+        timeout:5000,
+        onload: function (r) {
+            var gtkMatch = /window\.gtk = '(.*?)'/.exec(r.responseText)
+            var commonTokenMatch = /token: '(.*?)',/.exec(r.responseText)
+            if (!gtkMatch) {
+            console.log("获取gtk失败！！！");
+            }
+            if (!commonTokenMatch) {
+            console.log("获取token失败！！！");
+            }
+            var newGtk = gtkMatch[1];
+            var newCommonToken = commonTokenMatch[1];
+
+            if (typeof newGtk !== 'undefined') {
+                baiduTrans.gtk=newGtk;
+            }
+            if (typeof newCommonToken !== 'undefined') {
+                baiduTrans.token=newCommonToken;
+            }
+            GM_setValue('gtk', newGtk);
+            GM_setValue('token', newCommonToken);
+            GM_setValue('timestamp', (new Date()).valueOf());
+        },
+        onerror: function (e) {
+            console.error(e);
+        }
+    })
+}
+
+function ObjectToQueryString(object){
+    var querystring=Object.keys(object).map(function(key) { 
+        return encodeURIComponent(key) + '=' + encodeURIComponent(object[key]) 
+    }).join('&');
+    return querystring;
+}
+
+var baiduTrans = {
+    code:"bd",
+    codeText:"百度",
+    gtk:"",
+    token:"",
+    defaultOrigLang:"auto",         //默认源语言
+    defaultTargetLang:"zh",         //默认目标语言
+    langList: {"auto": "自动检测","zh": "中文","cht": "繁体中文","en": "英语","jp": "日语","kor": "韩语","fra": "法语","spa": "西班牙语","pt": "葡萄牙语","it": "意大利语","ru": "俄语","vie": "越南语","de": "德语","ara": "阿拉伯语"},
+    Execute: function (h_onloadfn) {
+        if(Trans.transOrigLang=="auto")
+            this.AutoTrans(h_onloadfn);
+        else
+            this.ExecTrans(h_onloadfn);
+        
+    },
+    AutoTrans:function(h_onloadfn){
+        var self=this;
+        var datas={
+            query:Trans.transText
+        }
+        GM_xmlhttpRequest({
+            method: "POST",
+            headers:{
+                "referer": 'https://fanyi.baidu.com',
+                "Content-Type": 'application/x-www-form-urlencoded; charset=UTF-8',
+            },
+            url: "https://fanyi.baidu.com/langdetect",
+            data: ObjectToQueryString(datas),
+            onload: function (r) {
+                var data = JSON.parse(r.responseText);
+                if(data.error===0){
+                    Trans.transOrigLang=data.lan;
+                    self.ExecTrans(h_onloadfn);
+                }
+            },
+            onerror: function (e) {
+                console.error(e);
+            }
+        });
+    },
+    ExecTrans:function(h_onloadfn){
+        var tempSign=calcSign(Trans.transText,this.gtk);
+        var datas={
+            from:Trans.transOrigLang,
+            to:Trans.transTargetLang,
+            query:Trans.transText,
+            transtype:"translang",
+            simple_means_flag:3,
+            sign:tempSign,
+            token:this.token
+        }
+        GM_xmlhttpRequest({
+            method: "POST",
+            headers:{
+                "referer": 'https://fanyi.baidu.com',
+                "Content-Type": 'application/x-www-form-urlencoded; charset=UTF-8',
+                //"User-Agent": window.navigator.userAgent,
+            },
+            url: "https://fanyi.baidu.com/v2transapi",
+            data: ObjectToQueryString(datas),
+            onload: function (r) {
+                setTimeout(function () {
+                    var result= JSON.parse(r.responseText);
+                    var trans_result=result.trans_result;
+                    var transDatas = trans_result.data;
+                    
+                    var trans = [],origs = [],src = "";
+                    for (var i = 0; i < transDatas.length; i++) {
+                        var getransCont = transDatas[i];
+                        trans.push(getransCont.dst);
+                        origs.push(getransCont.src);
+                    }
+                    src = trans_result.from;
+                    Trans.transResult.trans = trans;
+                    Trans.transResult.orig = origs;
+                    Trans.transResult.origLang = src;
+                    h_onloadfn();
+                }, 100);
+            },
+            onerror: function (e) {
+                console.error(e);
+            }
+        });
+    },
+    init:function(){
+    this.gtk = GM_getValue('gtk', '');
+    this.token = GM_getValue('token', '');
+    let timestamp = GM_getValue('timestamp', 0);
+    if (this.gtk=='' || this.token=='' || (new Date()).valueOf()-timestamp>600000){
+        GetToken();
+    }
+    }
+}
+baiduTrans.init();
+console.log(baiduTrans);
+
