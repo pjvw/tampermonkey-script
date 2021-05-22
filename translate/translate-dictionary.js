@@ -1,14 +1,13 @@
 // ==UserScript==
 // @name         划词翻译：多词典查询
 // @namespace    http://tampermonkey.net/
-// @version      6.8
+// @version      10.5
 // @description  划词翻译调用“有道词典（有道翻译）、金山词霸、Bing 词典（必应词典）、剑桥高阶、沪江小D、谷歌翻译”
 // @author       https://github.com/barrer
 // @match        http://*/*
 // @exclude-match *://*.cn/*
 // @include      https://*/*
 // @include      file:///*
-// @run-at       document-start
 // @connect      youdao.com
 // @connect      iciba.com
 // @connect      translate.google.cn
@@ -32,42 +31,40 @@
     // @connect      cambridge.org          剑桥高阶
     // 注意：自定义变量修改后把 “@version” 版本号改为 “10000” 防止自动更新
     // >---- 可以自定义的变量 -----
-    var fontSize = 14; // 字体大小[可自定义]
-    var iconWidth = 300; // 整个面板宽度[可自定义]
-    var iconHeight = 400; // 整个面板高度[可自定义]
+    const fontSize = 14; // 字体大小[可自定义]
+    const iconWidth = 300; // 整个面板宽度[可自定义]
+    const iconHeight = 400; // 整个面板高度[可自定义]
     // ----- 可以自定义的变量 ----<
     /**样式*/
-    var style = document.createElement('style');
-    var trContentWidth = iconWidth - 16; // 整个面板宽度 - 边距间隔 = 翻译正文宽度
-    var trContentHeight = iconHeight - 35; // 整个面板高度 - 边距间隔 = 翻译正文高度
-    var zIndex = '2147483647'; // 渲染图层
+    const style = document.createElement('style');
+    const trContentWidth = iconWidth - 16; // 整个面板宽度 - 边距间隔 = 翻译正文宽度
+    const trContentHeight = iconHeight - 35; // 整个面板高度 - 边距间隔 = 翻译正文高度
+    const zIndex = '2147483647'; // 渲染图层
     style.textContent = `
     /*组件样式*/
     :host{all:unset!important}
     :host{all:initial!important}
     *{word-wrap:break-word!important;word-break:break-word!important}
-    a{color:#00c;text-decoration:none;cursor:pointer}
+    a{color:#326891;text-decoration:none;cursor:pointer}
     a:hover{text-decoration:none}
-    a:active{text-decoration:underline}
+    a:active{text-decoration:none}
     img{cursor:pointer;display:inline-block;width:20px;height:20px;border:1px solid #dfe1e5;border-radius:4px;background-color:rgba(255,255,255,1);padding:2px;margin:0;margin-right:5px;box-sizing:content-box;vertical-align:middle}
     img:last-of-type{margin-right:auto}
-    img:hover{border:1px solid #f90}
-    img[activate]{border:1px solid #f90}
-    img[activate]:hover{border:1px solid #f90}
-    table{font-size:inherit;color:inherit}
-    tr-icon{display:none;position:absolute;padding:0;margin:0;cursor:move;box-sizing:content-box;font-size:${fontSize}px;text-align:left;border:0;border-radius:4px;color:black;z-index:${zIndex};background:transparent}
-    tr-icon[activate]{background:#fff;-webkit-box-shadow:0 3px 8px 0 rgba(0,0,0,0.2),0 0 0 0 rgba(0,0,0,0.08);box-shadow:0 3px 8px 0 rgba(0,0,0,0.2),0 0 0 0 rgba(0,0,0,0.08)}
+    img:hover{border:1px solid #ff9900}
+    img[activate]{border:1px solid #ff9900}
+    img[activate]:hover{border:1px solid #ff9900}
+    tr-icon{display:none;position:absolute;padding:0;margin:0;cursor:move;box-sizing:content-box;font-size:${fontSize}px;text-align:left;border:0;border-radius:4px;z-index:${zIndex};background:transparent}
+    tr-icon[activate]{color:#121212;background:#ffffff;-webkit-box-shadow:0 3px 8px 0 rgba(0,0,0,0.2),0 0 0 0 rgba(0,0,0,0.08);box-shadow:0 3px 8px 0 rgba(0,0,0,0.2),0 0 0 0 rgba(0,0,0,0.08)}
     tr-audio{display:block;margin-bottom:5px}
     tr-audio a{margin-right:1em;font-size:80%}
     tr-audio a:last-of-type{margin-right:auto}
-    tr-content{display:none;width:${trContentWidth}px;height:${trContentHeight}px;overflow-x:hidden;overflow-y:scroll;background:white;padding:2px 8px;margin-top:5px;box-sizing:content-box;font-family:"Helvetica Neue","Helvetica","Arial","sans-serif";font-size:${fontSize}px;font-weight:normal;line-height:normal;-webkit-font-smoothing:auto;font-smoothing:auto;text-rendering:auto}
+    tr-content{display:none;width:${trContentWidth}px;height:${trContentHeight}px;overflow-x:hidden;overflow-y:scroll;padding:2px 8px;margin-top:5px;box-sizing:content-box;font-family:"Helvetica Neue","Helvetica","Microsoft Yahei","微软雅黑","Arial","sans-serif";font-size:${fontSize}px;font-weight:normal;line-height:normal;-webkit-font-smoothing:auto;font-smoothing:auto;text-rendering:auto}
     tr-engine~tr-engine{margin-top:1em}
-    tr-engine .title{color:#00c;display:inline-block;font-weight:bold}
-    tr-engine .title:hover{text-decoration:none}
+    tr-engine .title{color:#121212;display:inline-block;font-size:110%;font-weight:bold}
     /*各引擎样式*/
     .google .sentences,.google .trans,.google .orig,.google .dict,.google .pos,.none{display:block}
     .google .backend,.google .entry,.google .base_form,.google .pos_enum,.google .src,.google .confidence,.google .ld_result,.google .translation_engine_debug_info,.none{display:none}
-    .google .orig{color:#777}
+    .google .orig{color:#808080}
     .google .pos{margin-top:1em}
     .google .pos:before{content:"<"}
     .google .pos:after{content:">"}
@@ -75,83 +72,89 @@
     .google .terms:after{content:"〕"}
     .google .terms{margin-right:.2em}
     .youdao .pron{margin-right:1em}
-    .youdao .phone{color:#777;margin-right:1em}
+    .youdao .phone{color:#808080;margin-right:1em}
     .youdao .phone:before{content:"["}
     .youdao .phone:after{content:"]"}
     .youdao .pos:before{content:"<"}
     .youdao .pos:after{content:">"}
     .youdao .phrs{display:none}
     .youdao .trs>.tr>.exam{display:none}
-    .youdao .trs>.tr>.l{display:block;margin-left:1em}
+    .youdao .trs>.tr>.l{display:block}
     .youdao [class="#text"]{font-style:italic}
-    .youdao .return-phrase,.youdao [class="@action"],.none{display:none}
+    .youdao [class="@action"],.none{display:none}
     .hjenglish dl,.hjenglish dt,.hjenglish dd,.hjenglish p,.hjenglish ul,.hjenglish li,.hjenglish h3{margin:0;padding:0;margin-block-start:0;margin-block-end:0;margin-inline-start:0;margin-inline-end:0}
     .hjenglish h3{font-size:1em;font-weight:normal}
-    .hjenglish .detail-pron,.hjenglish .pronounces{color:#777}
-    .hjenglish ul{margin-left:2em}
+    .hjenglish .detail-pron,.hjenglish .pronounces{color:#808080}
     .hjenglish .def-sentence-from,.hjenglish .def-sentence-to{display:none}
-    .hjenglish .detail-groups dd h3:before{counter-increment:eq;content:counter(eq) ".";display:block;width:22px;float:left}
+    .hjenglish .detail-groups dd h3:before{counter-increment:eq;content:counter(eq) ".";display:inline}
+    .hjenglish .detail-groups dd h3 p{display:inline}
+    .hjenglish .detail-groups dd:first-of-type:last-of-type h3:before{content:""}
     .hjenglish .detail-groups dl{counter-reset:eq;margin-bottom:.5em;clear:both}
     .hjenglish ol,.hjenglish ul{list-style:none}
-    .hjenglish dd{margin-left:1em}
-    .hjenglish dd>p{margin-left:2.5em}
-    .bing h1,.bing strong{font-size:1em;font-weight:normal;margin:0;padding:0}
+    .hjenglish dd>p{display:none}
+    .bing h1,.bing strong,.bing td{font-size:1em;font-weight:normal;margin:0;padding:0}
     .bing .concise ul{list-style:none;margin:0;padding:0}
     .bing .hd_tf{margin-right:1em}
     .bing .concise .pos{margin-right:.2em}
     .bing .concise .web{margin-right:auto}
     .bing .concise .web:after{content:"："}
     .bing .oald{margin-top:.4em}
-    .bing .hd_tf_lh div{display:inline;color:#777}
-    .bing #authid td:first-child{width:22px;margin:0;padding:0}
+    .bing .hd_tf_lh div{display:inline;color:#808080}
     .bing .def_row{vertical-align:top}
+    .bing .se_d{display:inline;margin-right:.25em}
+    .bing #authid .only .se_d{display:none}
     .bing .bil_dis,.bing .val_dis{padding-right:.25em}
-    .bing .li_exs{display:none}
+    .bing .li_sens div{display:inline}
+    .bing .li_sens div.li_exs,.bing .li_exs{display:none}
     .bing .li_id{border:0;padding:.2em}
     .bing .infor,.bing .sen_com,.bing .com_sep,.bing .bil,.bing .gra{padding-right:.25em}
     .bing .infor,.bing .label{padding-left:.25em}
     .bing .each_seg+.each_seg{margin-top:.5em}
-    .bing .de_co div{display:inline}
+    .bing .de_co,.bing .de_co div{display:inline}
     .bing .idm_seg,.bing .li_ids_co{margin-left:1em}
     .bing .sim{display:inline}
+    .bing .val{display:none}
     .cambridge .entry~.entry{margin-top:1em}
     .cambridge p,.cambridge h2,.cambridge h3{padding:0;margin:0}
     .cambridge h2,.cambridge h3{font-size:1em;font-weight:normal}
     .cambridge .headword .hw{display:block}
-    .cambridge .pron{color:#777;margin-right:1em}
+    .cambridge .pron{color:#808080;margin-right:1em}
     .cambridge b.def{font-weight:normal}
-    .cambridge .epp-xref{border:1px solid #777;border-radius:.5em;padding:0 2px;font-size:80%}
     .cambridge .examp,.cambridge .extraexamps,.cambridge .cols,.cambridge .xref,.cambridge .fcdo,.cambridge div[fallback],.cambridge .i-volume-up,.cambridge .daccord{display:none}
     .cambridge .entry-body__el+.entry-body__el{margin-top:1em}
-    .cambridge .pos-body{margin-left:1em}
-    .iciba strong{font-size:1em;font-weight:normal}
-    .iciba p{padding:0;margin:0}
-    .iciba .icIBahyI-footer,.iciba .icIBahyI-suggest{display:none}
-    .iciba .icIBahyI-prons{color:#777}
-    .iciba .icIBahyI-eg{margin-right:1em}
+    .cambridge .epp-xref,.cambridge .db,.cambridge .bb,.cambridge .i-caret-right,.cambridge .dsense_h{display:none}
+    .cambridge .dphrase-block{margin-left:1em}
+    .cambridge .dphrase-title b{font-weight:normal}
+    .cambridge .ddef_h,.cambridge .def-body{display:inline}
+    .iciba h1,.iciba p{margin:0;padding:0;font-size:1em;font-weight:normal}
+    .iciba ul{list-style:none;margin:0;padding:0}
+    .iciba li>i{font-style:normal}
+    .iciba ul[class^="Mean_symbols"] li{display:inline;color:#808080;margin-right:1em}
+    .iciba ul[class^="Mean_part"] li>i{margin-right:0.2em}
+    .iciba ul[class^="Mean_part"] li>div{display:inline}
     `;
     // iframe 工具库
-    var iframe = document.createElement('iframe');
-    var iframeWin = null;
-    var iframeDoc = null;
+    const iframe = document.createElement('iframe');
+    let iframeWin = null;
+    let iframeDoc = null;
     iframe.style.display = 'none';
-    var icon = document.createElement('tr-icon'), //翻译图标
-        content = document.createElement('tr-content'), // 内容面板
-        contentList = document.createElement('div'), //翻译内容结果集（HTML内容）列表
-        selected, // 当前选中文本
-        engineId, // 当前翻译引擎
-        engineTriggerTime, // 引擎触发时间（milliseconds）
-        idsType, // 当前翻译面板内容列表数组
-        pageX, // 图标显示的 X 坐标
-        pageY; // 图标显示的 Y 坐标
+    const icon = document.createElement('tr-icon');//翻译图标
+    const content = document.createElement('tr-content');// 内容面板
+    const contentList = document.createElement('div');//翻译内容结果集（HTML内容）列表
+    let selected;// 当前选中文本
+    let engineId;// 当前翻译引擎
+    let engineTriggerTime;// 引擎触发时间（milliseconds）
+    let idsType;// 当前翻译面板内容列表数组
+    let pageX;// 图标显示的 X 坐标
+    let pageY; // 图标显示的 Y 坐标
     // 初始化内容面板
     content.appendChild(contentList);
     // 发音缓存
-    var audioCache = {}; // {'mp3 download url': data}
+    let audioCache = {}; // {'mp3 download url': data}
     // 翻译引擎结果集
-    var engineResult = {}; // id: DOM 
+    let engineResult = {}; // id: DOM
     // 唯一 ID
-    var ids = {
+    const ids = {
         BD: 'bd',
         ICIBA: 'iciba',
         ICIBA_LOWER_CASE: 'icibaLowerCase',
@@ -163,21 +166,21 @@
         CAMBRIDGE: 'cambridge'
     };
     // 唯一 ID 扩展
-    var idsExtension = {
+    const idsExtension = {
         // ID 组
         LIST_DICT: [ids.BD, ids.ICIBA, ids.YOUDAO, ids.BING],
         LIST_DICT_LOWER_CASE: [ids.BD, ids.ICIBA, ids.ICIBA_LOWER_CASE, ids.YOUDAO, ids.YOUDAO_LOWER_CASE, ids.BING],
         LIST_GOOGLE: [ids.GOOGLE],
         // 去重比对（大小写翻译可能一样）
-        lowerCaseMap: (function () {
-            var obj = {};
+        lowerCaseMap: (() => {
+            const obj = {};
             obj[ids.ICIBA_LOWER_CASE] = ids.ICIBA;
             obj[ids.YOUDAO_LOWER_CASE] = ids.YOUDAO;
             return obj;
         })(),
         // 标题
-        names: (function () {
-            var obj = {};
+        names: (() => {
+            const obj = {};
             obj[ids.BD] = 'B';
             obj[ids.ICIBA] = '金山词霸';
             obj[ids.ICIBA_LOWER_CASE] = '';
@@ -190,8 +193,8 @@
             return obj;
         })(),
         // 跳转到网站（“%q%”占位符或者 function text -> return URL）
-        links: (function () {
-            var obj = {};
+        links: (() => {
+            const obj = {};
             obj[ids.BD] = 'https://fanyi.baidu.com/#en/zh/%q%';
             obj[ids.ICIBA] = 'https://www.iciba.com/word?w=%q%';
             obj[ids.ICIBA_LOWER_CASE] = '';
@@ -199,12 +202,12 @@
             obj[ids.YOUDAO_LOWER_CASE] = '';
             obj[ids.BING] = 'https://cn.bing.com/dict/search?q=%q%';
             obj[ids.HJENGLISH] = 'https://dict.hjenglish.com/w/%q%';
-            obj[ids.GOOGLE] = function (text) {
-                var rst = '';
+            obj[ids.GOOGLE] = text => {
+                let rst = '';
                 if (hasChineseByRange(text)) {
-                    rst = 'https://translate.google.cn/#view=home&op=translate&sl=auto&tl=en&text=' + encodeURIComponent(text);
+                    rst = `https://translate.google.cn/#view=home&op=translate&sl=auto&tl=en&text=${encodeURIComponent(text)}`;
                 } else {
-                    rst = 'https://translate.google.cn/#view=home&op=translate&sl=auto&tl=zh-CN&text=' + encodeURIComponent(text);
+                    rst = `https://translate.google.cn/#view=home&op=translate&sl=auto&tl=zh-CN&text=${encodeURIComponent(text)}`;
                 }
                 return rst;
             };
@@ -212,9 +215,9 @@
             return obj;
         })(),
         // 翻译引擎
-        engines: (function () {
-            var obj = {};
-            obj[ids.BD] = function (text, time) {
+        engines: (() => {
+            const obj = {};
+            obj[ids.BD] = (text, time) => {
                 console.log(text);
                 Trans = {
                     transText: text,
@@ -228,112 +231,113 @@
                     showContent();
                 });
             };
-            obj[ids.ICIBA] = function (text, time) {
-                ajax('https://open.iciba.com/huaci_v3/dict.php?word=' + encodeURIComponent(text), function (rst) {
+            obj[ids.ICIBA] = (text, time) => {
+                ajax(`https://www.iciba.com/word?w=${encodeURIComponent(text)}`, rst => {
                     putEngineResult(ids.ICIBA, parseIciba(rst), time);
                     showContent();
-                }, function (rst) {
+                }, rst => {
                     putEngineResult(ids.ICIBA, htmlToDom('error: 无法连接翻译服务'), time);
                     showContent();
                 });
             };
-            obj[ids.ICIBA_LOWER_CASE] = function (text, time) {
-                ajax('https://open.iciba.com/huaci_v3/dict.php?word=' + encodeURIComponent(text.toLowerCase()), function (rst) {
+            obj[ids.ICIBA_LOWER_CASE] = (text, time) => {
+                ajax(`https://www.iciba.com/word?w=${encodeURIComponent(text.toLowerCase())}`, rst => {
                     putEngineResult(ids.ICIBA_LOWER_CASE, parseIciba(rst), time);
                     showContent();
-                }, function (rst) {
+                }, rst => {
                     putEngineResult(ids.ICIBA_LOWER_CASE, htmlToDom('error: 无法连接翻译服务'), time);
                     showContent();
                 });
             };
-            obj[ids.YOUDAO] = function (text, time) {
-                ajax('https://dict.youdao.com/jsonapi?xmlVersion=5.1&jsonversion=2&q=' + encodeURIComponent(text), function (rst) {
+            obj[ids.YOUDAO] = (text, time) => {
+                ajax(`https://dict.youdao.com/jsonapi?xmlVersion=5.1&jsonversion=2&q=${encodeURIComponent(text)}`, rst => {
                     putEngineResult(ids.YOUDAO, parseYoudao(rst), time)
                     showContent();
-                }, function (rst) {
+                }, rst => {
                     putEngineResult(ids.YOUDAO, htmlToDom('error: 无法连接翻译服务'), time);
                     showContent();
                 });
             };
-            obj[ids.YOUDAO_LOWER_CASE] = function (text, time) {
-                ajax('https://dict.youdao.com/jsonapi?xmlVersion=5.1&jsonversion=2&q=' + encodeURIComponent(text.toLowerCase()), function (rst) {
+            obj[ids.YOUDAO_LOWER_CASE] = (text, time) => {
+                ajax(`https://dict.youdao.com/jsonapi?xmlVersion=5.1&jsonversion=2&q=${encodeURIComponent(text.toLowerCase())}`, rst => {
                     putEngineResult(ids.YOUDAO_LOWER_CASE, parseYoudao(rst), time);
                     showContent();
-                }, function (rst) {
+                }, rst => {
                     putEngineResult(ids.YOUDAO_LOWER_CASE, htmlToDom('error: 无法连接翻译服务'), time)
                     showContent();
                 });
             };
-            obj[ids.BING] = function (text, time) {
-                ajax('https://cn.bing.com/dict/search?q=' + encodeURIComponent(text), function (rst) {
+            obj[ids.BING] = (text, time) => {
+                ajax(`https://cn.bing.com/dict/search?q=${encodeURIComponent(text)}`, rst => {
                     putEngineResult(ids.BING, parseBing(rst), time);
                     showContent();
-                }, function (rst) {
+                }, rst => {
                     putEngineResult(ids.BING, htmlToDom('error: 无法连接翻译服务'), time);
                     showContent();
                 }, {
                     headers: {
-                        'Cookie': 'ENSEARCH=BENVER=0;' // 中文结果
+                        'Accept-Language': 'zh-CN,zh;q=0.9'
                     }
                 });
             };
-            obj[ids.HJENGLISH] = function (text, time) {
-                ajax('https://dict.hjenglish.com/w/' + encodeURIComponent(text), function (rst) {
+            obj[ids.HJENGLISH] = (text, time) => {
+                ajax(`https://dict.hjenglish.com/w/${encodeURIComponent(text)}`, rst => {
                     putEngineResult(ids.HJENGLISH, parseHjenglish(rst), time);
                     showContent();
-                }, function (rst) {
+                }, rst => {
                     putEngineResult(ids.HJENGLISH, htmlToDom('error: 无法连接翻译服务'), time);
                     showContent();
                 }, {
                     headers: {
-                        'Cookie': 'HJ_SID=' + uuid() + '; HJ_SSID_3=' + uuid() + '; HJ_CST=1; HJ_CSST_3=1; HJ_UID=' + uuid(),
-                        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/75.0.3770.142 Safari/537.36'
+                        'Cookie': `HJ_SID=${uuid()}; HJ_SSID_3=${uuid()}; HJ_CST=1; HJ_CSST_3=1; HJ_UID=${uuid()}`,
+                        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/13.0 Safari/605.1.15'
                     }
                 });
             };
-            obj[ids.GOOGLE] = function (text, time) {
-                var url = 'https://translate.google.cn/translate_a/single?client=gtx&dt=t&dt=bd&dj=1&source=input&hl=zh-CN&sl=auto';
-                url += '&tk=' + token(text);
+            obj[ids.GOOGLE] = (text, time) => {
+                let url = 'https://translate.google.cn/translate_a/single?client=gtx&dt=t&dt=bd&dj=1&source=input&hl=zh-CN&sl=auto';
+                url += `&tk=${token(text)}`;
                 if (hasChineseByRange(text)) {
-                    url += '&tl=en&q=' + encodeURIComponent(text);
+                    url += `&tl=en&q=${encodeURIComponent(text)}`;
                 } else {
-                    url += '&tl=zh-CN&q=' + encodeURIComponent(text);
+                    url += `&tl=zh-CN&q=${encodeURIComponent(text)}`;
                 }
-                ajax(url, function (rst) {
+                ajax(url, rst => {
                     putEngineResult(ids.GOOGLE, parseGoogle(rst), time);
                     showContent();
-                }, function (rst) {
+                }, rst => {
                     putEngineResult(ids.GOOGLE, htmlToDom('error: 无法连接翻译服务'), time);
                     showContent();
                 });
             };
-            obj[ids.CAMBRIDGE] = function (text, time) {
-                var url = 'https://dictionary.cambridge.org/dictionary/english-chinese-simplified/' + encodeURIComponent(text);
-                ajax(url, function (rst) {
+            obj[ids.CAMBRIDGE] = (text, time) => {
+                const url = `https://dictionary.cambridge.org/dictionary/english-chinese-simplified/${encodeURIComponent(text)}`;
+                ajax(url, rst => {
                     putEngineResult(ids.CAMBRIDGE, parseCambridge(rst), time);
                     showContent();
-                }, function (rst) {
+                }, rst => {
                     putEngineResult(ids.CAMBRIDGE, htmlToDom('error: 无法连接翻译服务'), time);
                     showContent();
                 });
             };
             return obj;
         })()
-    }
+    };
     // 绑定图标拖动事件
-    var iconDrag = new Drag(icon);
+    const iconDrag = new Drag(icon);
+    const dragFluctuation = 16;// 当拖动多少像素以上时不触发查询
     // 图标数组
-    var iconArray = [{
+    const iconArray = [{
         name: '多词典查询',
         id: 'icon-dict',
         // image: 'https://i0.hdslb.com/bfs/archive/07bcc0b8504d4a87204542af30fc792e4568471d.png',
         image: 'https://res.wx.qq.com/mpres/htmledition/images/wxopen/doc49d02c.png',
-        trigger: function (text, time) {
+        trigger(text, time) {
             idsType = idsExtension.LIST_DICT;
             if (text != text.toLowerCase()) {
                 idsType = idsExtension.LIST_DICT_LOWER_CASE; // 改为大小写 ID 组（大小写各请求一次）
             }
-            idsType.forEach(function (id) {
+            idsType.forEach(id => {
                 idsExtension.engines[id](text, time);
             });
             initContent(); // 初始化翻译面板
@@ -343,9 +347,9 @@
         name: '谷歌翻译',
         id: 'icon-google',
         image: 'https://res.wx.qq.com/mpres/htmledition/images/wxopen/other49d02c.png',
-        trigger: function (text, time) {
+        trigger(text, time) {
             idsType = idsExtension.LIST_GOOGLE;
-            idsType.forEach(function (id) {
+            idsType.forEach(id => {
                 idsExtension.engines[id](text, time);
             });
             initContent(); // 初始化翻译面板
@@ -353,17 +357,17 @@
         }
     }];
     // 添加翻译引擎图标
-    iconArray.forEach(function (obj) {
-        var img = document.createElement('img');
+    iconArray.forEach(obj => {
+        const img = document.createElement('img');
         img.setAttribute('src', obj.image);
         img.setAttribute('alt', obj.name);
         img.setAttribute('title', obj.name);
         img.setAttribute('icon-id', obj.id);
         img.referrerPolicy = "no-referrer";
-        img.addEventListener('click', function () {
+        img.addEventListener('click', () => {
             if (engineId == obj.id) {
                 // 已经是当前翻译引擎，不做任何处理
-            } else {
+            } else if (!isDrag(dragFluctuation)) {
                 icon.setAttribute('activate', 'activate'); // 标注面板展开
                 engineId = obj.id; // 翻译引擎 ID
                 engineTriggerTime = new Date().getTime(); // 引擎触发时间
@@ -381,9 +385,9 @@
     // 添加内容面板（放图标后面）
     icon.appendChild(content);
     // 添加样式、翻译图标到 DOM
-    var root = document.createElement('div');
+    const root = document.createElement('div');
     document.documentElement.appendChild(root);
-    var shadow = root.attachShadow({
+    const shadow = root.attachShadow({
         mode: 'closed'
     });
     // iframe 工具库加入 Shadow
@@ -391,7 +395,7 @@
     iframeWin = iframe.contentWindow;
     iframeDoc = iframe.contentDocument;
     // 外部样式表
-    var link = document.createElement('link');
+    const link = document.createElement('link');
     link.rel = 'stylesheet';
     link.type = 'text/css';
     link.href = createObjectURLWithTry(new Blob(['\ufeff', style.textContent], {
@@ -401,10 +405,11 @@
     // https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Security-Policy
     shadow.appendChild(style); // 内部样式表
     shadow.appendChild(link); // 外部样式表
+    adoptedStyleSheets(shadow, style.textContent); // CSSStyleSheet 样式
     // 翻译图标加入 Shadow
     shadow.appendChild(icon);
     // 鼠标事件：防止选中的文本消失
-    document.addEventListener('mousedown', function (e) {
+    document.addEventListener('mousedown', e => {
         log('mousedown event:', e);
         if (e.target == icon || (e.target.parentNode && e.target.parentNode == icon)) { // 点击了翻译图标
             e.preventDefault();
@@ -416,7 +421,7 @@
     document.addEventListener('selectionchange', showIcon);
     document.addEventListener('touchend', showIcon);
     // 内容面板滚动事件
-    content.addEventListener('scroll', function (e) {
+    content.addEventListener('scroll', e => {
         if (content.scrollHeight - content.scrollTop === content.clientHeight) {
             log('scroll bottom', e);
             e.preventDefault();
@@ -428,14 +433,14 @@
         }
     });
     /**日志输出*/
-    function log() {
-        var debug = false;
+    function log(...args) {
+        const debug = false;
         if (!debug) {
             return;
         }
-        if (arguments) {
-            for (var i = 0; i < arguments.length; i++) {
-                console.log(arguments[i]);
+        if (args) {
+            for (let i = 0; i < args.length; i++) {
+                console.log(args[i]);
             }
         }
     }
@@ -448,8 +453,10 @@
         this.mouseDownPositionY = 0;
         this.elementOriginalLeft = parseInt(element.style.left);
         this.elementOriginalTop = parseInt(element.style.top);
-        var ref = this;
-        this.startDrag = function (e) {
+        this.backAndForthLeftMax = 0;
+        this.backAndForthTopMax = 0;
+        const ref = this;
+        this.startDrag = e => {
             e.preventDefault();
             ref.dragging = true;
             ref.startDragTime = new Date().getTime();
@@ -457,39 +464,55 @@
             ref.mouseDownPositionY = e.clientY;
             ref.elementOriginalLeft = parseInt(element.style.left);
             ref.elementOriginalTop = parseInt(element.style.top);
-            // set mousemove event
+            ref.backAndForthLeftMax = 0;
+            ref.backAndForthTopMax = 0;
+            // set global mouse events
             window.addEventListener('mousemove', ref.dragElement);
+            window.addEventListener('mouseup', ref.stopDrag);
             log('startDrag');
         };
-        this.unsetMouseMove = function () {
-            // unset mousemove event
+        this.unsetMouseMove = () => {
+            // unset global mouse events
             window.removeEventListener('mousemove', ref.dragElement);
+            window.removeEventListener('mouseup', ref.stopDrag);
         };
-        this.stopDrag = function (e) {
+        this.stopDrag = e => {
             e.preventDefault();
             ref.dragging = false;
             ref.stopDragTime = new Date().getTime();
             ref.unsetMouseMove();
             log('stopDrag');
         };
-        this.dragElement = function (e) {
+        this.dragElement = e => {
             log('dragging');
             if (!ref.dragging) {
                 return;
             }
             e.preventDefault();
             // move element
-            element.style.left = ref.elementOriginalLeft + (e.clientX - ref.mouseDownPositionX) + 'px';
-            element.style.top = ref.elementOriginalTop + (e.clientY - ref.mouseDownPositionY) + 'px';
+            element.style.left = `${ref.elementOriginalLeft + (e.clientX - ref.mouseDownPositionX)}px`;
+            element.style.top = `${ref.elementOriginalTop + (e.clientY - ref.mouseDownPositionY)}px`;
+            // get max move
+            let left = Math.abs(ref.elementOriginalLeft - parseInt(element.style.left));
+            let top = Math.abs(ref.elementOriginalTop - parseInt(element.style.top));
+            if (left > ref.backAndForthLeftMax) ref.backAndForthLeftMax = left;
+            if (top > ref.backAndForthTopMax) ref.backAndForthTopMax = top;
             log('dragElement');
         };
         element.onmousedown = this.startDrag;
         element.onmouseup = this.stopDrag;
     }
-    /**是否拖动图标*/
-    function isDrag() {
-        return iconDrag.elementOriginalLeft != parseInt(icon.style.left) ||
-            iconDrag.elementOriginalTop != parseInt(icon.style.top);
+    /**
+     * 是否拖动图标
+     * @param fluctuate 位移波动允许范围
+    */
+    function isDrag(fluctuate) {
+        return (iconDrag.elementOriginalLeft != parseInt(icon.style.left)
+            && Math.abs(iconDrag.elementOriginalLeft - parseInt(icon.style.left)) >= fluctuate) ||
+            (iconDrag.elementOriginalTop != parseInt(icon.style.top)
+                && Math.abs(iconDrag.elementOriginalTop - parseInt(icon.style.top)) >= fluctuate) ||
+            iconDrag.backAndForthLeftMax >= fluctuate ||
+            iconDrag.backAndForthTopMax >= fluctuate;
     }
     /**强制结束拖动*/
     function forceStopDrag() {
@@ -505,66 +528,137 @@
     }
     /**uuid*/
     function uuid() {
-        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
-            var r = Math.random() * 16 | 0,
-                v = c == 'x' ? r : (r & 0x3 | 0x8);
+        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+            const r = Math.random() * 16 | 0;
+            const v = c == 'x' ? r : (r & 0x3 | 0x8);
             return v.toString(16);
         });
     }
     /**对象转 xml*/
     function objToXml(obj) {
-        var xml = '';
-        for (var prop in obj) {
+        let xml = '';
+        for (const prop in obj) {
             if (obj[prop] instanceof iframeWin.Function) {
                 continue;
             }
-            xml += obj[prop] instanceof iframeWin.Array ? '' : '<' + prop + '>';
+            xml += obj[prop] instanceof iframeWin.Array ? '' : `<${prop}>`;
             if (obj[prop] instanceof iframeWin.Array) {
-                for (var array in obj[prop]) {
+                for (const array in obj[prop]) {
                     if (obj[prop][array] instanceof iframeWin.Function) {
                         continue;
                     }
-                    xml += '<' + prop + '>';
+                    xml += `<${prop}>`;
                     xml += objToXml(new iframeWin.Object(obj[prop][array]));
-                    xml += '</' + prop + '>';
+                    xml += `</${prop}>`;
                 }
             } else if (obj[prop] instanceof iframeWin.Object) {
                 xml += objToXml(new iframeWin.Object(obj[prop]));
             } else {
                 xml += obj[prop];
             }
-            xml += obj[prop] instanceof iframeWin.Array ? '' : '</' + prop + '>';
+            xml += obj[prop] instanceof iframeWin.Array ? '' : `</${prop}>`;
         }
-        var xml = xml.replace(/<\/?[0-9]{1,}>/g, '');
-        return xml
+        return xml.replace(/<\/?[0-9]{1,}>/g, '');
     }
     /**xml 转 html*/
     function xmlToHtml(xml, tag) {
-        return xml.replace(/<([^/]+?)>/g, '<' + tag + ' class="$1">')
-            .replace(/<\/(.+?)>/g, '</' + tag + '>');
+        return xml.replace(/<([^/]+?)>/g, `<${tag} class="$1">`)
+            .replace(/<\/(.+?)>/g, `</${tag}>`);
     }
-    // html 字符串转 DOM
+    /**html 字符串转 DOM*/
     function htmlToDom(html) {
-        var div = document.createElement('div');
+        const div = document.createElement('div');
         div.innerHTML = html;
         return div;
+    }
+    /**替换html标签
+     * @param tag 匹配的时候不区分大小写
+    */
+    function replaceHtmlTag(str, tag, newTag) {
+        if (true) { // 开始标签
+            let newStr = '';
+            let index = 0;
+            let matches = str.matchAll(/<(((?![<\/>])[\S])+)(((?![<>])[\S\s])*)>/g);
+            for (const match of matches) {
+                if (tag.toLowerCase() !== match[1].toLowerCase()) continue;
+                newStr += str.substring(index, match.index);
+                newStr += match[3] ? `<${newTag}${match[3]}>` : `<${newTag}>`;
+                index = match.index + match[0].length;
+            }
+            newStr += str.substring(index, str.length);
+            str = newStr;
+        }
+        if (true) { // 结束标签
+            let newStr = '';
+            let index = 0;
+            let matches = str.matchAll(/<\/(((?![<>])[\S])+)(((?![<>])[\S\s])*)>/g);
+            for (const match of matches) {
+                if (tag.toLowerCase() !== match[1].toLowerCase()) continue;
+                newStr += str.substring(index, match.index);
+                newStr += `</${newTag}>`;
+                index = match.index + match[0].length;
+            }
+            newStr += str.substring(index, str.length);
+            str = newStr;
+        }
+        return str;
     }
     /**清理 html*/
     function cleanHtml(html) {
         html = html.replace(/<script[\s\S]*?<\/script>/ig, '')
+            .replace(/<meta[\s\S]*?>/ig, '')
+            .replace(/<title[\s\S]*?<\/title>/ig, '')
+            .replace(/<head[\s\S]*?<\/head>/ig, '')
             .replace(/<link[\s\S]*?>/ig, '')
             .replace(/<style[\s\S]*?<\/style>/ig, '')
+            .replace(/<audio[\s\S]*?<\/audio>/ig, '')
+            .replace(/<audio[\s\S]*?>/ig, '')
+            .replace(/<video[\s\S]*?<\/video>/ig, '')
+            .replace(/<video[\s\S]*?>/ig, '')
+            .replace(/<iframe[\s\S]*?<\/iframe>/ig, '')
+            .replace(/<iframe[\s\S]*?>/ig, '')
             .replace(/<img[\s\S]*?>/ig, '');
-        html = cleanAttr(html, 'on[a-z]*');
+        html = cleanAttr(html, /on[a-z]*/ig);
         return html;
     }
     /**
      * 清理指定属性（忽略大小写）
-     * @param attr 支持正则表示（如“on[a-z]*”，表示清理“on”开头的属性：onclick、onmove等）
+     * @param rmAttrKey 正则表达式
      */
-    function cleanAttr(html, attr) {
-        var regex = ' ' + attr + '="([^"<>]*)"';
-        return html.replace(new RegExp(regex, 'ig'), '');
+    function cleanAttr(html, rmAttrKey) {// @param rmAttrKey 如“/on[a-z]*/ig”，表示清理“on”、“ON”开头的属性：onclick、onmove等
+        let str = html;
+        // 开始标签中的属性
+        let newStr = '';
+        let index = 0;
+        let matches = str.matchAll(/<(((?![<\/>])[\S])+)(((?![<>])[\S\s])*)>/g);
+        for (const match of matches) {
+            // 属性匹配
+            let attrStr = match[0];
+            let attrNewStr = '';
+            let attrIndex = 0;
+            let attrMs = attrStr
+                .matchAll( // 此正则会匹配“key=value”[1]这种形式，属性中仅有单“key”[2]不匹配，属性中混合[1][2]仅匹配[1]且[2]会算作其之前邻近[1]的value
+                    /([\s][a-zA-Z0-9-]+(((?![=<>])[\s])*))=(((?!([\s][a-zA-Z0-9-]+(((?![=<>])[\s])*))=)(?![<>])[\s\S])*)/g
+                )
+            for (const am of attrMs) {
+                let key = am[1].trim();
+                let value = am[4].trim();
+                if (rmAttrKey.test(key)) {
+                    attrNewStr += attrStr.substring(attrIndex, am.index);
+                    attrIndex = am.index + am[0].length;
+                }
+            }
+            attrNewStr += attrStr.substring(attrIndex, attrStr.length);
+            attrStr = attrNewStr;
+            // 删减属性后更新标签
+            if (match[0] === attrStr) continue; // 无删减属性
+            newStr += str.substring(index, match.index);
+            newStr += attrStr;
+            index = match.index + match[0].length;
+        }
+        newStr += str.substring(index, str.length);
+        str = newStr;
+        return str;
     }
     /**带异常处理的 createObjectURL*/
     function createObjectURLWithTry(blob) {
@@ -575,6 +669,25 @@
         }
         return '';
     }
+    /**解决 Content-Security-Policy 样式文件加载问题（Chrome 实验功能）*/
+    function adoptedStyleSheets(bindDocumentOrShadowRoot, cssText) {
+        try {
+            if (bindDocumentOrShadowRoot.adoptedStyleSheets) {
+                cssText = cssText.replace(/\/\*.*?\*\//ig, ''); // remove CSS comments
+                const cssSheet = new CSSStyleSheet();
+                const styleArray = cssText.split('\n');
+                for (let i = 0; i < styleArray.length; i++) {
+                    const line = styleArray[i].trim();
+                    if (line.length > 0) {
+                        cssSheet.insertRule(line);
+                    }
+                }
+                bindDocumentOrShadowRoot.adoptedStyleSheets = [cssSheet];
+            }
+        } catch (error) {
+            log(error);
+        }
+    }
     /**ajax 跨域访问公共方法*/
     function ajax(url, success, error, obj) {
         if (!!!obj) {
@@ -583,35 +696,35 @@
         if (!!!obj.method) {
             obj.method = 'GET';
         }
-        // >>>因为Tampermonkey跨域访问(a.com)时会自动携带对应域名(a.com)的对应cookie
-        // 不会携带当前域名的cookie
-        // 所以，GM_xmlhttpRequest【不存在】cookie跨域访问安全性问题
-        // 以下设置的cookie会添加到已有cookie的后面<<<
         if (!!!obj.headers) {
-            obj.headers = {
-                'cookie': ''
-            };
+            obj.headers = {};
+        }
+        // Tampermonkey（其它浏览器扩展同理）代理跨域访问（a.com）时会自动携带对应域名（a.com）的对应cookie，
+        // 不会携带当前域名的cookie，GM_xmlhttpRequest【不存在】cookie跨域访问安全性问题。
+        if (!!!obj.anonymous) {
+            obj.anonymous = true;// 默认不发送cookie
         }
         GM_xmlhttpRequest({
             method: obj.method,
-            url: url,
+            url,
             headers: obj.headers,
+            anonymous: obj.anonymous,
             responseType: obj.responseType,
             data: obj.data,
-            onload: function (res) {
+            onload(res) {
                 success(res.responseText, res, obj);
             },
-            onerror: function (res) {
+            onerror(res) {
                 error(res.responseText, res, obj);
             },
-            onabort: function (res) {
+            onabort(res) {
                 error('the request was aborted', res, obj);
             },
-            ontimeout: function (res) {
+            ontimeout(res) {
                 error('the request failed due to a timeout', res, obj);
             },
-            onreadystatechange: function () {
-                log('ajax:', arguments);
+            onreadystatechange(...args) {
+                log('ajax:', args);
             }
         });
     }
@@ -625,38 +738,38 @@
     function initContent() {
         contentList.innerHTML = ''; // 清空翻译内容列表
         // 发音
-        var audio = document.createElement('tr-audio');
+        const audio = document.createElement('tr-audio');
         audio.appendChild(getPlayButton({
             name: 'US',
-            url: 'https://dict.youdao.com/dictvoice?audio=' + selected + '&type=2'
+            url: `https://dict.youdao.com/dictvoice?audio=${selected}&type=2`
         }));
         audio.appendChild(getPlayButton({
             name: 'UK',
-            url: 'https://dict.youdao.com/dictvoice?audio=' + selected + '&type=1'
+            url: `https://dict.youdao.com/dictvoice?audio=${selected}&type=1`
         }));
         if (engineId != 'icon-google') { // 谷歌翻译不显示发音图标
             contentList.appendChild(audio);
         }
         // 初始化翻译引擎结构（此时内容暂未填充）
-        idsType.forEach(function (id) {
+        idsType.forEach(id => {
             if (id in idsExtension.names) {
-                var engine = document.createElement('tr-engine');
+                const engine = document.createElement('tr-engine');
                 engine.setAttribute('data-id', id);
                 engine.style.display = 'none'; // 暂无内容默认隐藏
                 // 标题
                 if (idsExtension.names[id]) {
-                    var title = document.createElement('a');
+                    const title = document.createElement('a');
                     title.innerHTML = idsExtension.names[id];
                     title.setAttribute('class', 'title');
-                    var href = 'javascript:void(0)';
+                    let href = 'javascript:void(0)';
                     if (idsExtension.links[id]) {
-                        var link = idsExtension.links[id];
+                        const link = idsExtension.links[id];
                         if (typeof link == 'string') {
                             if (link.length > 0) {
                                 href = link.replace(/%q%/ig, encodeURIComponent(selected));
                             }
                         } else if (typeof link == 'function') {
-                            var fnHref = link(selected);
+                            const fnHref = link(selected);
                             if (fnHref.length > 0) {
                                 href = fnHref;
                             }
@@ -666,6 +779,11 @@
                     title.setAttribute('target', '_blank');
                     title.setAttribute('href', href);
                     title.setAttribute('title', '打开源网站');
+                    title.addEventListener('click', e => {
+                        if (isDrag(dragFluctuation)) {
+                            e.preventDefault();
+                        }
+                    });
                     engine.appendChild(title);
                 }
                 contentList.appendChild(engine);
@@ -675,8 +793,8 @@
     }
     /**显示内容面板*/
     function displayContent() {
-        var panelWidth = iconWidth + 8; // icon 展开后总宽度(8:冗余距离)
-        var panelHeight = iconHeight + 8; // icon 展开后总高度(8:冗余距离)
+        const panelWidth = iconWidth + 8; // icon 展开后总宽度(8:冗余距离)
+        const panelHeight = iconHeight + 8; // icon 展开后总高度(8:冗余距离)
         // 计算位置
         log('content position:',
             'window.scrollY', window.scrollY,
@@ -694,26 +812,18 @@
             'document.body.clientWidth', document.body.clientWidth,
             'icon.style.left', icon.style.left
         );
-        var scrollTop = Math.max(parseInt(document.documentElement.scrollTop), parseInt(document.body.scrollTop));
-        var scrollLeft = Math.max(parseInt(document.documentElement.scrollLeft), parseInt(document.body.scrollLeft));
-        var clientHeight = [parseInt(document.documentElement.clientHeight), parseInt(document.body.clientHeight)].filter(function (x) {
-            return x <= parseInt(window.innerHeight);
-        }).sort(function (a, b) {
-            return a > b ? -1 : (a == b ? 0 : 1);
-        })[0]; // 找出最大值且小于等于 window 的高度
+        const scrollTop = Math.max(parseInt(document.documentElement.scrollTop), parseInt(document.body.scrollTop));
+        const scrollLeft = Math.max(parseInt(document.documentElement.scrollLeft), parseInt(document.body.scrollLeft));
+        let clientHeight = [parseInt(document.documentElement.clientHeight), parseInt(document.body.clientHeight)].filter(x => x <= parseInt(window.innerHeight)).sort((a, b) => a > b ? -1 : (a == b ? 0 : 1))[0]; // 找出最大值且小于等于 window 的高度
         if (!clientHeight) { // 网页缩放导致可能数组为空（[0] 为 undefined）
             clientHeight = parseInt(window.innerHeight);
         }
-        var clientWidth = [parseInt(document.documentElement.clientWidth), parseInt(document.body.clientWidth)].filter(function (x) {
-            return x <= parseInt(window.innerWidth);
-        }).sort(function (a, b) {
-            return a > b ? -1 : (a == b ? 0 : 1);
-        })[0]; // 找出最大值且小于等于 window 的宽度
+        let clientWidth = [parseInt(document.documentElement.clientWidth), parseInt(document.body.clientWidth)].filter(x => x <= parseInt(window.innerWidth)).sort((a, b) => a > b ? -1 : (a == b ? 0 : 1))[0]; // 找出最大值且小于等于 window 的宽度
         if (!clientWidth) { // 网页缩放导致可能数组为空（[0] 为 undefined）
             clientWidth = parseInt(window.innerWidth);
         }
         // 设置新的位置
-        var iconNewTop = -1;
+        let iconNewTop = -1;
         if (parseInt(icon.style.top) < scrollTop) { // 面板在滚动条顶部可见部分之上（隐藏了部分或全部）
             log('Y adjust top');
             iconNewTop = scrollTop; // 设置为滚动条顶部可见部分位置
@@ -727,9 +837,9 @@
         }
         if (iconNewTop != -1 && Math.abs(iconNewTop - parseInt(icon.style.top)) <= panelHeight) {
             log('Y set iconNewTop', iconNewTop);
-            icon.style.top = iconNewTop + 'px';
+            icon.style.top = `${iconNewTop}px`;
         }
-        var iconNewLeft = -1;
+        let iconNewLeft = -1;
         if (parseInt(icon.style.left) < scrollLeft) {
             log('X adjust left');
             iconNewLeft = scrollLeft;
@@ -743,7 +853,7 @@
         }
         if (iconNewLeft != -1 && Math.abs(iconNewLeft - parseInt(icon.style.left)) <= panelWidth) {
             log('X set iconNewLeft', iconNewLeft);
-            icon.style.left = iconNewLeft + 'px';
+            icon.style.left = `${iconNewLeft}px`;
         }
         content.scrollTop = 0; // 翻译面板滚动到顶端
         content.scrollLeft = 0; // 翻译面板滚动到左端
@@ -752,9 +862,9 @@
     /**内容面板填充数据*/
     function showContent() {
         // 填充已有结果集引擎内容
-        idsType.forEach(function (id) {
+        idsType.forEach(id => {
             if (engineResult[id] && !(id in idsExtension.lowerCaseMap)) { // 跳过小写的内容填充
-                var engine = contentList.querySelector('tr-engine[data-id="' + id + '"]');
+                const engine = contentList.querySelector(`tr-engine[data-id="${id}"]`);
                 if (engine) {
                     engine.appendChild(engineResult[id]);
                     engine.removeAttribute('data-id');
@@ -763,12 +873,12 @@
             }
         });
         // 比较大小写内容
-        for (var id in idsExtension.lowerCaseMap) {
+        for (const id in idsExtension.lowerCaseMap) {
             if (engineResult[id] &&
                 engineResult[idsExtension.lowerCaseMap[id]] &&
                 engineResult[id].innerHTML != engineResult[idsExtension.lowerCaseMap[id]].innerHTML &&
                 engineResult[id].innerHTML.toLowerCase() != engineResult[idsExtension.lowerCaseMap[id]].innerHTML.toLowerCase()) {
-                var engine = contentList.querySelector('tr-engine[data-id="' + id + '"]');
+                const engine = contentList.querySelector(`tr-engine[data-id="${id}"]`);
                 if (engine) {
                     engine.appendChild(engineResult[id]);
                     engine.removeAttribute('data-id');
@@ -779,20 +889,20 @@
     }
     /**隐藏翻译引擎指示器*/
     function engineActivateHide() {
-        icon.querySelectorAll('img[activate]').forEach(function (ele) {
+        icon.querySelectorAll('img[activate]').forEach(ele => {
             ele.removeAttribute('activate');
         });
     }
     /**显示翻译引擎指示器*/
     function engineActivateShow() {
         engineActivateHide();
-        icon.querySelector('img[icon-id="' + engineId + '"]').setAttribute('activate', 'activate');
+        icon.querySelector(`img[icon-id="${engineId}"]`).setAttribute('activate', 'activate');
     }
     /**显示 icon*/
     function showIcon(e) {
         log('showIcon event:', e);
-        var offsetX = 4; // 横坐标翻译图标偏移
-        var offsetY = 8; // 纵坐标翻译图标偏移
+        let offsetX = 4; // 横坐标翻译图标偏移
+        let offsetY = 8; // 纵坐标翻译图标偏移
         // 更新翻译图标 X、Y 坐标
         if (e.pageX && e.pageY) { // 鼠标
             log('mouse pageX/Y');
@@ -809,17 +919,17 @@
                 offsetY = 16 * 3; // 一般字体高度的 3 倍，距离系统自带动作菜单、选择光标太近会导致无法点按
             }
         }
-        log('selected:' + selected + ', pageX:' + pageX + ', pageY:' + pageY)
+        log(`selected:${selected}, pageX:${pageX}, pageY:${pageY}`)
         if (e.target == icon || (e.target.parentNode && e.target.parentNode == icon)) { // 点击了翻译图标
             e.preventDefault();
             return;
         }
         selected = window.getSelection().toString().trim(); // 当前选中文本
-        log('selected:' + selected + ', icon display:' + icon.style.display);
+        log(`selected:${selected}, icon display:${icon.style.display}`);
         if (selected && icon.style.display != 'block' && pageX && pageY) { // 显示翻译图标
             log('show icon');
-            icon.style.top = pageY + offsetY + 'px';
-            icon.style.left = pageX + offsetX + 'px';
+            icon.style.top = `${pageY + offsetY}px`;
+            icon.style.left = `${pageX + offsetX}px`;
             icon.style.display = 'block';
             // 兼容部分 Content Security Policy
             icon.style.position = 'absolute';
@@ -853,46 +963,48 @@
     }
     /**得到发音按钮*/
     function getPlayButton(obj) {
-        var type = document.createElement('a');
+        const type = document.createElement('a');
         type.innerHTML = obj.name;
         type.setAttribute('href', 'javascript:void(0)');
         type.setAttribute('class', 'audio-button');
         type.setAttribute('title', '点击发音');
-        type.addEventListener('mouseup', function () {
-            play(obj);
+        type.addEventListener('mouseup', () => {
+            if (!isDrag(dragFluctuation)) {
+                play(obj);
+            }
         });
         return type;
     }
     /**有道词典排版*/
     function parseYoudao(rst) {
-        var html = '';
+        let html = '';
         try {
-            var rstJson = iframeWin.JSON.parse(rst),
-                phoneStyle = 'color:#777;';
+            const rstJson = iframeWin.JSON.parse(rst);
+            const phoneStyle = 'color:#808080;';
             if (rstJson.ec) {
-                var word = rstJson.ec.word[0],
-                    tr = '';
-                var trs = word.trs,
-                    ukphone = word.ukphone,
-                    usphone = word.usphone,
-                    phone = word.phone,
-                    returnPhrase = word['return-phrase'];
+                const word = rstJson.ec.word[0];
+                let tr = '';
+                const trs = word.trs;
+                const ukphone = word.ukphone;
+                const usphone = word.usphone;
+                const phone = word.phone;
+                const returnPhrase = word['return-phrase'];
                 if (returnPhrase && returnPhrase.l && returnPhrase.l.i) {
-                    html += '<div>' + returnPhrase.l.i + '</div>';
+                    html += `<div>${returnPhrase.l.i}</div>`;
                 }
                 html += '<div>';
                 if (ukphone && ukphone.length != 0) {
-                    html += '<span class="pron" style="' + phoneStyle + '">英 [' + ukphone + '] </span>';
+                    html += `<span class="pron" style="${phoneStyle}">英 [${ukphone}] </span>`;
                 }
                 if (usphone && usphone.length != 0) {
-                    html += '<span class="pron" style="' + phoneStyle + '">美 [' + usphone + '] </span>';
+                    html += `<span class="pron" style="${phoneStyle}">美 [${usphone}] </span>`;
                 }
                 html += '</div>';
                 if (phone && phone.length != 0) {
-                    html += '<div class="pron" style="' + phoneStyle + '">[' + phone + '] </div>';
+                    html += `<div class="pron" style="${phoneStyle}">[${phone}] </div>`;
                 }
                 trs.forEach(element => {
-                    tr += '<div>' + element.tr[0].l.i[0] + '</div>';
+                    tr += `<div>${element.tr[0].l.i[0]}</div>`;
                 });
                 html += tr;
             }
@@ -904,33 +1016,47 @@
                 rstJson.web_trans['web-translation'][0]['@same'] == 'true' &&
                 rstJson.web_trans['web-translation'][0].trans &&
                 rstJson.web_trans['web-translation'][0].trans.length > 0) {
-                var webTrans = '网络：';
-                rstJson.web_trans['web-translation'][0].trans.forEach(function (obj, i) {
-                    if (obj.value) {
-                        if (obj.cls && obj.cls.cl && obj.cls.cl.length > 0) {
-                            obj.cls.cl.forEach(function (cl) {
-                                webTrans += '[' + cl + ']';
+                let webTrans = '网络：';
+                rstJson.web_trans['web-translation'][0].trans.forEach(({ value, cls }, i) => {
+                    if (value) {
+                        if (cls && cls.cl && cls.cl.length > 0) {
+                            cls.cl.forEach(cl => {
+                                webTrans += `[${cl}]`;
                             });
                         }
-                        webTrans += obj.value;
+                        webTrans += value;
                         if (rstJson.web_trans['web-translation'][0].trans.length - 1 != i) {
                             webTrans += '；';
                         }
                     }
                 });
-                html += '<div>' + webTrans + '</div>';
+                html += `<div>${webTrans}</div>`;
             }
             // 中英翻译
             if (rstJson.ce_new && rstJson.ce_new.word) {
-                html += '<div>' +
-                    '《新汉英大辞典》<br>' + xmlToHtml(objToXml(rstJson.ce_new.word), 'div') +
-                    '</div>';
+                const arr = new iframeWin.Array();
+                rstJson.ce_new.word.forEach(d => {
+                    if (d.phone) {
+                        const obj = new iframeWin.Object();
+                        obj['phone'] = d.phone;
+                        arr.push(objToXml(obj));
+                    }
+                    if (d['return-phrase']) {
+                        const obj = new iframeWin.Object();
+                        obj['return-phrase'] = d['return-phrase'];
+                        arr.push(objToXml(obj));
+                    }
+                    if (d.trs) {
+                        const obj = new iframeWin.Object();
+                        obj['trs'] = d.trs;
+                        arr.push(objToXml(obj));
+                    }
+                });
+                html += `<div>《${rstJson.ce_new.source && rstJson.ce_new.source.name ? rstJson.ce_new.source.name : ''}》<br>${xmlToHtml(objToXml(arr), 'div')}</div>`;
             }
             // 中文翻译
             if (rstJson.hh && rstJson.hh.word) {
-                html += '<div>' +
-                    '《现代汉语大词典》<br>' + xmlToHtml(objToXml(rstJson.hh.word), 'span') +
-                    '</div>';
+                html += `<div>《现代汉语大词典》<br>${xmlToHtml(objToXml(rstJson.hh.word), 'span')}</div>`;
             }
             // 长句翻译
             if (rstJson.fanyi && rstJson.fanyi.tran) {
@@ -940,54 +1066,27 @@
             log(error);
             html += error;
         }
-        var dom = document.createElement('div');
+        const dom = document.createElement('div');
         dom.setAttribute('class', ids.YOUDAO);
         dom.innerHTML = html;
         return dom;
     }
     /**金山词霸排版*/
     function parseIciba(rst) {
-        var dom = document.createElement('div');
+        let dom = document.createElement('div');
         dom.setAttribute('class', ids.ICIBA);
         try {
-            rst = rst.replace(/\n/g, ' ');
-            rst = /dict.innerHTML='(.*)';    \tdict.style.display = "block";/g.exec(rst)[1];
-            rst = rst
-                .replace(/\\"/g, '"')
-                .replace(/\\'/g, '\'') // inner-city 这个词会多一个斜杠，金山词霸的数据有些许瑕疵
-                .replace(/onclick=/g, 'data-onclick=');
-            rst = cleanAttr(rst, 'style');
-            // 标识符处理
-            var symbolRegex = /(<span class="icIBahyI-fl">.*?(?: xml:lang=).*?<\/span>)/ig;
-            var symbolMatch;
-            var symbolResult = [];
-            while ((symbolMatch = symbolRegex.exec(rst)) != null) {
-                symbolResult.push(symbolMatch[1]);
-            }
-            symbolResult.forEach(function (str) {
-                rst = rst.replace(str,
-                    str.replace(/\[英\]/g, '英')
-                    .replace(/\[美\]/g, '美')
-                );
+            let doc = htmlToDom(cleanHtml(rst));
+            let mean = doc.querySelector('div[class^="Mean_mean"]');
+            mean.querySelectorAll('ul[class^="Mean_symbols"] li').forEach(el => {
+                el.innerHTML = el.innerHTML.replace(/英/g, '英 ').replace(/美/g, '美 ');
             });
-            rst = cleanHtml(rst)
-                .replace(/(?:a>)/ig, 'span>')
-                .replace(/(?:<a)/ig, '<span');
-            var doc = htmlToDom(rst);
-            // 发音
-            doc.querySelectorAll('[title="真人发音"],[title="机器发音"]').forEach(function (ele) {
-                var str = ele.getAttribute('data-onclick');
-                var regex = /'(http:\/\/.*?)'/ig;
-                var match = regex.exec(str);
-                if (match && match.length >= 1) {
-                    ele.appendChild(getPlayButton({
-                        name: '♫',
-                        url: match[1]
-                    }));
-                }
-            });
-            // 内容
-            dom.appendChild(doc);
+            let mt = mean.querySelector('p[class^="Mean_desc"]')
+                && mean.querySelector('p[class^="Mean_desc"]').innerHTML.includes('以上结果来自机器翻译。')
+                ? ',p[class^="Mean_desc"],h2[class^="Mean_sentence"]' : '';
+            mean.querySelectorAll(`p[class^="Mean_tag"],p[class^="Mean_else"],ul[class^="TabList_tab"],h3[class^="Mean_title"]${mt}`).forEach(el => el.remove());
+            mean.innerHTML = mean.innerHTML.replace(/<li><\/li>/g, '');// GNU、MODE
+            dom.appendChild(mean);
         } catch (error) {
             log(error);
             dom.appendChild(htmlToDom(error));
@@ -996,24 +1095,25 @@
     }
     /**沪江小D排版*/
     function parseHjenglish(rst) {
-        var dom = document.createElement('div');
+        let dom = document.createElement('div');
         dom.setAttribute('class', ids.HJENGLISH);
         try {
-            var doc = htmlToDom(cleanHtml(rst));
-            var label = doc.querySelector('.word-details-item-content header');
-            var entry = doc.querySelector('.word-text h2');
-            var collins = doc.querySelector('div[data-id="detail"] .word-details-item-content .detail-groups');
+            rst = cleanHtml(rst);
+            let doc = htmlToDom(rst);
+            let label = doc.querySelector('.word-details-item-content header');
+            let entry = doc.querySelector('.word-text h2');
+            let collins = doc.querySelector('div[data-id="detail"] .word-details-item-content .detail-groups');
             if (entry) {
-                var entryDom = document.createElement('div');
+                let entryDom = document.createElement('div');
                 entryDom.setAttribute('class', 'entry');
                 entryDom.innerHTML = entry.innerHTML;
                 dom.appendChild(entryDom);
                 if (collins) {
                     if (label) {
-                        var regex = /(《.*?》)/ig;
-                        var match = regex.exec(label.innerHTML);
+                        let regex = /(《.*?》)/ig;
+                        let match = regex.exec(label.innerHTML);
                         if (match && match[1]) {
-                            dom.appendChild(htmlToDom('<div>' + match[1] + '</div>'));
+                            dom.appendChild(htmlToDom(`<div>${match[1]}</div>`));
                         }
                     }
                     dom.appendChild(collins);
@@ -1027,53 +1127,64 @@
     }
     /**必应词典排版*/
     function parseBing(rst) {
-        var html = '';
+        let html = '';
         try {
             rst = rst.replace(/onmouseover/ig, 'data-sound'); // 发音链接预处理
             rst = cleanHtml(rst)
                 .replace(/(?:a>)/ig, 'span>')
                 .replace(/(?:<a)/ig, '<span');
-            var doc = htmlToDom(rst);
-            doc.querySelectorAll('.hw_ti').forEach(function (ele) { // 牛津词头（不准）
+            let doc = htmlToDom(rst);
+            doc.querySelectorAll('.hw_ti').forEach(ele => { // 牛津词头（不准）
                 ele.remove();
             });
-            var entry = doc.querySelector('.qdef .hd_area');
-            var concise = doc.querySelector('.qdef ul');
-            var tense = doc.querySelector('.qdef .hd_div1');
-            var oald = doc.querySelector('#authid');
+            let entry = doc.querySelector('.qdef .hd_area');
+            let concise = doc.querySelector('.qdef ul');
+            let tense = doc.querySelector('.qdef .hd_div1');
+            let oald = doc.querySelector('#authid');
             if (entry) {
-                html += '<div class="entry">' + entry.innerHTML + '</div>';
+                html += `<div class="entry">${entry.innerHTML}</div>`;
                 if (concise) {
-                    html += '<div class="concise">' + concise.outerHTML + '</div>';
+                    html += `<div class="concise">${concise.outerHTML}</div>`;
                 }
                 if (tense) {
-                    html += '<div class="tense">' + tense.outerHTML + '</div>';
+                    html += `<div class="tense">${tense.outerHTML}</div>`;
                 }
                 if (oald) {
-                    html += '<div class="oald">《牛津高阶英汉双解词典第八版》<br>' + oald.outerHTML + '</div>';
+                    // 单条释义不显示序号
+                    oald.querySelectorAll('.se_lis').forEach(({ parentElement, classList }) => {
+                        if (parentElement.querySelectorAll('.se_lis').length == 1) {
+                            classList.add('only');
+                        }
+                    });
+                    let oaldHtml = oald.outerHTML;
+                    oaldHtml = replaceHtmlTag(oaldHtml, 'table', 'div');
+                    oaldHtml = replaceHtmlTag(oaldHtml, 'tbody', 'div');
+                    oaldHtml = replaceHtmlTag(oaldHtml, 'tr', 'div');
+                    oaldHtml = replaceHtmlTag(oaldHtml, 'td', 'span');
+                    html += `<div class="oald">《牛津高阶英汉双解词典第八版》<br>${oaldHtml}</div>`;
                 }
             }
             // 计算机翻译
-            var machineTrans = doc.querySelector('.smt_hw');
-            if (machineTrans && machineTrans.innerHTML.indexOf('计算机翻译') != -1) {
-                var parent = machineTrans.parentNode;
-                var zhText = parent.querySelector('.p1-11');
+            let machineTrans = doc.querySelector('.smt_hw');
+            if (machineTrans && (machineTrans.innerHTML.includes('计算机翻译') || machineTrans.innerHTML.includes('Machine Translation'))) {
+                let parent = machineTrans.parentNode;
+                let zhText = parent.querySelector('.p1-11');
                 if (zhText) {
-                    html += '<div class="machine-trans">' + zhText.outerHTML + '</div>';
+                    html += `<div class="machine-trans">${zhText.outerHTML}</div>`;
                 }
             }
         } catch (error) {
             log(error);
             html += error;
         }
-        var dom = document.createElement('div');
+        let dom = document.createElement('div');
         dom.setAttribute('class', ids.BING);
         dom.innerHTML = html;
         // 发音
-        dom.querySelectorAll('[data-sound]').forEach(function (ele) {
-            var str = ele.getAttribute('data-sound');
-            var regex = /'(https:\/\/.*?)'/ig;
-            var match = regex.exec(str);
+        dom.querySelectorAll('[data-sound]').forEach(ele => {
+            let str = ele.getAttribute('data-sound');
+            let regex = /'(https:\/\/.*?)'/ig;
+            let match = regex.exec(str);
             if (match && match.length >= 1) {
                 ele.appendChild(getPlayButton({
                     name: '♫',
@@ -1085,7 +1196,7 @@
     }
     /**谷歌翻译排版*/
     function parseGoogle(rst) {
-        var dom = document.createElement('div');
+        const dom = document.createElement('div');
         dom.setAttribute('class', ids.GOOGLE);
         try {
             dom.appendChild(htmlToDom(xmlToHtml(objToXml(iframeWin.JSON.parse(rst)), 'span')));
@@ -1097,21 +1208,21 @@
     }
     /**剑桥高阶排版*/
     function parseCambridge(rst) {
-        var dom = document.createElement('div');
+        const dom = document.createElement('div');
         dom.setAttribute('class', ids.CAMBRIDGE);
         try {
             rst = cleanHtml(rst).replace(/(?:a>)/ig, 'span>')
                 .replace(/(?:<a)/ig, '<span');
-            var doc = htmlToDom(rst);
+            const doc = htmlToDom(rst);
             // 发音
-            doc.querySelectorAll('[type="audio/mpeg"]').forEach(function (ele) {
+            doc.querySelectorAll('[type="audio/mpeg"]').forEach(ele => {
                 ele.appendChild(getPlayButton({
                     name: '♫',
-                    url: 'https://dictionary.cambridge.org/' + ele.getAttribute('src')
+                    url: `https://dictionary.cambridge.org/${ele.getAttribute('src')}`
                 }));
             });
             // 内容
-            doc.querySelectorAll('.entry').forEach(function (ele) {
+            doc.querySelectorAll('.entry').forEach(ele => {
                 dom.appendChild(ele);
             });
         } catch (error) {
@@ -1125,16 +1236,16 @@
      * https://github.com/hujingshuang/MTrans
      * */
     function token(a) {
-        var k = "";
-        var b = 406644;
-        var b1 = 3293161072;
-
-        var jd = ".";
-        var sb = "+-a^+6";
-        var Zb = "+-3^+b+-f";
-
-        for (var e = [], f = 0, g = 0; g < a.length; g++) {
-            var m = a.charCodeAt(g);
+        const b = 406644;
+        const b1 = 3293161072;
+        const jd = ".";
+        const sb = "+-a^+6";
+        const Zb = "+-3^+b+-f";
+        let e = [];
+        let f = 0;
+        let g = 0;
+        for (e = [], f = 0, g = 0; g < a.length; g++) {
+            let m = a.charCodeAt(g);
             128 > m ? e[f++] = m : (2048 > m ? e[f++] = m >> 6 | 192 : (55296 == (m & 64512) && g + 1 < a.length && 56320 == (a.charCodeAt(g + 1) & 64512) ? (m = 65536 + ((m & 1023) << 10) + (a.charCodeAt(++g) & 1023), e[f++] = m >> 18 | 240, e[f++] = m >> 12 & 63 | 128) : e[f++] = m >> 12 | 224, e[f++] = m >> 6 & 63 | 128), e[f++] = m & 63 | 128)
         }
         a = b;
@@ -1144,19 +1255,18 @@
         a ^= b1 || 0;
         0 > a && (a = (a & 2147483647) + 2147483648);
         a %= 1E6;
-        return a.toString() + jd + (a ^ b)
-    };
-
+        return a.toString() + jd + (a ^ b);
+    }
     function RL(a, b) {
-        var t = "a";
-        var Yb = "+";
-        for (var c = 0; c < b.length - 2; c += 3) {
-            var d = b.charAt(c + 2),
-                d = d >= t ? d.charCodeAt(0) - 87 : Number(d),
-                d = b.charAt(c + 1) == Yb ? a >>> d : a << d;
-            a = b.charAt(c) == Yb ? a + d & 4294967295 : a ^ d
+        const t = "a";
+        const Yb = "+";
+        for (let c = 0; c < b.length - 2; c += 3) {
+            let d = b.charAt(c + 2);
+            d = d >= t ? d.charCodeAt(0) - 87 : Number(d);
+            d = b.charAt(c + 1) == Yb ? a >>> d : a << d;
+            a = b.charAt(c) == Yb ? a + d & 4294967295 : a ^ d;
         }
-        return a
+        return a;
     }
 
 
